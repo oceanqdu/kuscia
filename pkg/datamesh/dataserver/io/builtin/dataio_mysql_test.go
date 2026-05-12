@@ -57,9 +57,7 @@ func dbInfoToDsn(info *datamesh.DatabaseDataSourceInfo) string {
 	)
 }
 
-// GenerateArrowSchema generate schema from domaindata
 func GenerateArrowSchemaExclude(domainData *datamesh.DomainData, exclude map[string]struct{}) (*arrow.Schema, error) {
-	// get schema from Query
 	fields := make([]arrow.Field, 0)
 	for i, column := range domainData.Columns {
 		if _, ok := exclude[column.Name]; ok {
@@ -139,7 +137,6 @@ func registerDomainData(t *testing.T, conf *config.DataMeshConfig, domaindataSpe
 	return dd
 }
 
-// TEST ONLY! if domaindataSpec is nil, generate a basic spec
 func initMySQLIOTestRequestContext(t *testing.T, tableName string, dbInfo *datamesh.DatabaseDataSourceInfo, domaindataSpec *v1alpha1.DomainDataSpec, isQuery bool) (*config.DataMeshConfig, *utils.DataMeshRequestContext, *sql.DB, sqlmock.Sqlmock) {
 	conf := initMySQLContextTestEnv(t, domaindataSpec)
 	dsID := "mysql-data-source"
@@ -153,14 +150,8 @@ func initMySQLIOTestRequestContext(t *testing.T, tableName string, dbInfo *datam
 			DataSource:  dsID,
 			Author:      conf.KubeNamespace,
 			Columns: []v1alpha1.DataColumn{
-				{
-					Name: "name",
-					Type: "str",
-				},
-				{
-					Name: "id",
-					Type: "int",
-				},
+				{Name: "name", Type: "str"},
+				{Name: "id", Type: "int"},
 			},
 		}
 	} else {
@@ -206,7 +197,6 @@ func initMySQLIOTestRequestContext(t *testing.T, tableName string, dbInfo *datam
 }
 
 func getTableFlightData(t *testing.T, ctx *utils.DataMeshRequestContext, colType []arrow.DataType, dataRows [][]any) []*flight.FlightData {
-	// use a writer to store input data
 	mgs := &mockDoGetServer{
 		ServerStream: &mockGrpcServerStream{},
 	}
@@ -222,93 +212,58 @@ func getTableFlightData(t *testing.T, ctx *utils.DataMeshRequestContext, colType
 		switch colType[idx].(type) {
 		case *arrow.StringType:
 			recordBuilder[idx] = array.NewStringBuilder(memory.DefaultAllocator)
-			builderFunc[idx] = func(bld array.Builder, val any) {
-				bld.(*array.StringBuilder).Append(val.(string))
-			}
+			builderFunc[idx] = func(bld array.Builder, val any) { bld.(*array.StringBuilder).Append(val.(string)) }
 		case *arrow.BooleanType:
 			recordBuilder[idx] = array.NewBooleanBuilder(memory.DefaultAllocator)
-			builderFunc[idx] = func(bld array.Builder, val any) {
-				bld.(*array.BooleanBuilder).Append(val.(bool))
-			}
+			builderFunc[idx] = func(bld array.Builder, val any) { bld.(*array.BooleanBuilder).Append(val.(bool)) }
 		case *arrow.Float32Type:
 			recordBuilder[idx] = array.NewFloat32Builder(memory.DefaultAllocator)
-			builderFunc[idx] = func(bld array.Builder, val any) {
-				bld.(*array.Float32Builder).Append(val.(float32))
-			}
+			builderFunc[idx] = func(bld array.Builder, val any) { bld.(*array.Float32Builder).Append(val.(float32)) }
 		case *arrow.Float64Type:
 			recordBuilder[idx] = array.NewFloat64Builder(memory.DefaultAllocator)
-			builderFunc[idx] = func(bld array.Builder, val any) {
-				bld.(*array.Float64Builder).Append(val.(float64))
-			}
+			builderFunc[idx] = func(bld array.Builder, val any) { bld.(*array.Float64Builder).Append(val.(float64)) }
 		case *arrow.Int8Type:
 			recordBuilder[idx] = array.NewInt8Builder(memory.DefaultAllocator)
-			builderFunc[idx] = func(bld array.Builder, val any) {
-				bld.(*array.Int8Builder).Append(val.(int8))
-			}
+			builderFunc[idx] = func(bld array.Builder, val any) { bld.(*array.Int8Builder).Append(val.(int8)) }
 		case *arrow.Int16Type:
 			recordBuilder[idx] = array.NewInt16Builder(memory.DefaultAllocator)
-			builderFunc[idx] = func(bld array.Builder, val any) {
-				bld.(*array.Int16Builder).Append(val.(int16))
-			}
+			builderFunc[idx] = func(bld array.Builder, val any) { bld.(*array.Int16Builder).Append(val.(int16)) }
 		case *arrow.Int32Type:
 			recordBuilder[idx] = array.NewInt32Builder(memory.DefaultAllocator)
-			builderFunc[idx] = func(bld array.Builder, val any) {
-				bld.(*array.Int32Builder).Append(val.(int32))
-			}
+			builderFunc[idx] = func(bld array.Builder, val any) { bld.(*array.Int32Builder).Append(val.(int32)) }
 		case *arrow.Int64Type:
 			recordBuilder[idx] = array.NewInt64Builder(memory.DefaultAllocator)
-			builderFunc[idx] = func(bld array.Builder, val any) {
-				bld.(*array.Int64Builder).Append(val.(int64))
-			}
+			builderFunc[idx] = func(bld array.Builder, val any) { bld.(*array.Int64Builder).Append(val.(int64)) }
 		case *arrow.Uint8Type:
 			recordBuilder[idx] = array.NewUint8Builder(memory.DefaultAllocator)
-			builderFunc[idx] = func(bld array.Builder, val any) {
-				bld.(*array.Uint8Builder).Append(val.(uint8))
-			}
+			builderFunc[idx] = func(bld array.Builder, val any) { bld.(*array.Uint8Builder).Append(val.(uint8)) }
 		case *arrow.Uint16Type:
 			recordBuilder[idx] = array.NewUint16Builder(memory.DefaultAllocator)
-			builderFunc[idx] = func(bld array.Builder, val any) {
-				bld.(*array.Uint16Builder).Append(val.(uint16))
-			}
+			builderFunc[idx] = func(bld array.Builder, val any) { bld.(*array.Uint16Builder).Append(val.(uint16)) }
 		case *arrow.Uint32Type:
 			recordBuilder[idx] = array.NewUint32Builder(memory.DefaultAllocator)
-			builderFunc[idx] = func(bld array.Builder, val any) {
-				bld.(*array.Uint32Builder).Append(val.(uint32))
-			}
+			builderFunc[idx] = func(bld array.Builder, val any) { bld.(*array.Uint32Builder).Append(val.(uint32)) }
 		case *arrow.Uint64Type:
 			recordBuilder[idx] = array.NewUint64Builder(memory.DefaultAllocator)
-			builderFunc[idx] = func(bld array.Builder, val any) {
-				bld.(*array.Uint64Builder).Append(val.(uint64))
-			}
+			builderFunc[idx] = func(bld array.Builder, val any) { bld.(*array.Uint64Builder).Append(val.(uint64)) }
 		case *arrow.Date32Type:
 			recordBuilder[idx] = array.NewDate32Builder(memory.DefaultAllocator)
-			builderFunc[idx] = func(bld array.Builder, val any) {
-				bld.(*array.Date32Builder).Append(arrow.Date32(val.(int32)))
-			}
+			builderFunc[idx] = func(bld array.Builder, val any) { bld.(*array.Date32Builder).Append(arrow.Date32(val.(int32))) }
 		case *arrow.Date64Type:
 			recordBuilder[idx] = array.NewDate64Builder(memory.DefaultAllocator)
-			builderFunc[idx] = func(bld array.Builder, val any) {
-				bld.(*array.Date64Builder).Append(arrow.Date64(val.(int64)))
-			}
+			builderFunc[idx] = func(bld array.Builder, val any) { bld.(*array.Date64Builder).Append(arrow.Date64(val.(int64))) }
 		case *arrow.Time32Type:
 			recordBuilder[idx] = array.NewTime32Builder(memory.DefaultAllocator, arrow.FixedWidthTypes.Time32s.(*arrow.Time32Type))
-			builderFunc[idx] = func(bld array.Builder, val any) {
-				bld.(*array.Time32Builder).Append(arrow.Time32(val.(int32)))
-			}
+			builderFunc[idx] = func(bld array.Builder, val any) { bld.(*array.Time32Builder).Append(arrow.Time32(val.(int32))) }
 		case *arrow.Time64Type:
 			recordBuilder[idx] = array.NewTime64Builder(memory.DefaultAllocator, arrow.FixedWidthTypes.Time64us.(*arrow.Time64Type))
-			builderFunc[idx] = func(bld array.Builder, val any) {
-				bld.(*array.Time64Builder).Append(arrow.Time64(val.(int64)))
-			}
+			builderFunc[idx] = func(bld array.Builder, val any) { bld.(*array.Time64Builder).Append(arrow.Time64(val.(int64))) }
 		case *arrow.TimestampType:
 			recordBuilder[idx] = array.NewTimestampBuilder(memory.DefaultAllocator, arrow.FixedWidthTypes.Timestamp_s.(*arrow.TimestampType))
-			builderFunc[idx] = func(bld array.Builder, val any) {
-				bld.(*array.TimestampBuilder).Append(arrow.Timestamp(val.(int64)))
-			}
+			builderFunc[idx] = func(bld array.Builder, val any) { bld.(*array.TimestampBuilder).Append(arrow.Timestamp(val.(int64))) }
 		default:
 			panic("invalid unit test data type")
 		}
-
 	}
 
 	for _, row := range dataRows {
@@ -317,15 +272,12 @@ func getTableFlightData(t *testing.T, ctx *utils.DataMeshRequestContext, colType
 		}
 	}
 
-	// prepare record
 	recordData := make([]arrow.Array, len(colType))
 	for idx, builder := range recordBuilder {
 		recordData[idx] = builder.NewArray()
 	}
 
-	// prepare dataList
 	assert.NoError(t, writer.Write(array.NewRecord(schema, recordData, int64(len(dataRows)))))
-
 	writer.Close()
 
 	return mgs.dataList
@@ -355,7 +307,7 @@ func TestMySQLIOChannel_Read_Success(t *testing.T) {
 	rows.AddRow("alice", 1)
 	rows.AddRow("bob", 2)
 
-	mock.ExpectQuery("SELECT `name`, `id` FROM `" + tableName + "`").WillReturnRows(rows)
+	mock.ExpectQuery("SELECT ` + "`" + `name` + "`" + `, ` + "`" + `id` + "`" + ` FROM ` + "`" + `" + tableName + "` + "`" + `").WillReturnRows(rows)
 
 	dd, _, err := rc.GetDomainDataAndSource(ctx)
 	assert.NoError(t, err)
@@ -379,18 +331,12 @@ func TestMySQLIOChannel_Write_Success(t *testing.T) {
 		DataSource:  "data-" + uuid.New().String(),
 		Author:      "alice",
 		Columns: []v1alpha1.DataColumn{
-			{
-				Name: "name",
-				Type: "str",
-			},
-			{
-				Name: "id",
-				Type: "int",
-			},
+			{Name: "name", Type: "str"},
+			{Name: "id", Type: "int"},
 		},
 	}
 
-	ctx, _, mock, uploader, rc, err := initMySQLUploader(t, "`output`", domaindataSpec)
+	ctx, _, mock, uploader, rc, err := initMySQLUploader(t, "` + "`" + `output` + "`" + `", domaindataSpec)
 	assert.NotNil(t, uploader)
 	assert.NoError(t, err)
 
@@ -411,13 +357,13 @@ func TestMySQLIOChannel_Write_Success(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, reader)
-	dropSQL := regexp.QuoteMeta("DROP TABLE IF EXISTS `output`")
-	expectSQL := regexp.QuoteMeta("CREATE TABLE `output` (`name` TEXT, `id` BIGINT SIGNED)")
+	dropSQL := regexp.QuoteMeta("DROP TABLE IF EXISTS ` + "`" + `output` + "`" + `")
+	expectSQL := regexp.QuoteMeta("CREATE TABLE ` + "`" + `output` + "`" + ` (` + "`" + `name` + "`" + ` TEXT, ` + "`" + `id` + "`" + ` BIGINT)")
 	mock.ExpectExec(dropSQL).WithoutArgs().WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectExec(expectSQL).WithoutArgs().WillReturnResult(sqlmock.NewResult(1, 1))
 
 	mock.ExpectBegin()
-	prepare := mock.ExpectPrepare("INSERT INTO `output`")
+	prepare := mock.ExpectPrepare("INSERT INTO ` + "`" + `output` + "`" + `")
 	prepare.ExpectExec().WithArgs("alice", "1", "bob", "2").WillReturnResult(sqlmock.NewResult(2, 1))
 	mock.ExpectCommit()
 
