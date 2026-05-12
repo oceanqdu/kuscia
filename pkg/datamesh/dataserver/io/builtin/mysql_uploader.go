@@ -188,7 +188,6 @@ func (u *MySQLUploader) transformColToStringArr(typ arrow.DataType, col arrow.Ar
 		arr := col.(*array.Date32)
 		for i := 0; i < arr.Len(); i++ {
 			if arr.IsValid(i) {
-				// Convert days since epoch to date string in YYYY-MM-DD format
 				days := int64(arr.Value(i))
 				t := time.Unix(days*24*3600, 0).UTC()
 				res[i] = t.Format("2006-01-02")
@@ -200,7 +199,6 @@ func (u *MySQLUploader) transformColToStringArr(typ arrow.DataType, col arrow.Ar
 		arr := col.(*array.Date64)
 		for i := 0; i < arr.Len(); i++ {
 			if arr.IsValid(i) {
-				// Convert milliseconds since epoch to datetime string
 				ms := int64(arr.Value(i))
 				t := time.Unix(ms/1000, (ms%1000)*int64(time.Millisecond)).UTC()
 				res[i] = t.Format("2006-01-02 15:04:05")
@@ -212,7 +210,6 @@ func (u *MySQLUploader) transformColToStringArr(typ arrow.DataType, col arrow.Ar
 		arr := col.(*array.Time32)
 		for i := 0; i < arr.Len(); i++ {
 			if arr.IsValid(i) {
-				// Time32 stores time as seconds or milliseconds since midnight
 				t := time.Date(0, 1, 1, 0, 0, 0, 0, time.UTC)
 				switch arr.DataType().(*arrow.Time32Type).Unit {
 				case arrow.Second:
@@ -229,7 +226,6 @@ func (u *MySQLUploader) transformColToStringArr(typ arrow.DataType, col arrow.Ar
 		arr := col.(*array.Time64)
 		for i := 0; i < arr.Len(); i++ {
 			if arr.IsValid(i) {
-				// Time64 stores time as microseconds or nanoseconds since midnight
 				t := time.Date(0, 1, 1, 0, 0, 0, 0, time.UTC)
 				switch arr.DataType().(*arrow.Time64Type).Unit {
 				case arrow.Microsecond:
@@ -246,7 +242,6 @@ func (u *MySQLUploader) transformColToStringArr(typ arrow.DataType, col arrow.Ar
 		arr := col.(*array.Timestamp)
 		for i := 0; i < arr.Len(); i++ {
 			if arr.IsValid(i) {
-				// Convert timestamp based on unit
 				ts := arr.Value(i)
 				unit := arr.DataType().(*arrow.TimestampType).Unit
 				var t time.Time
@@ -276,19 +271,19 @@ func (u *MySQLUploader) ArrowDataTypeToMySQLType(colType arrow.DataType) string 
 	case arrow.PrimitiveTypes.Uint8:
 		return "TINYINT UNSIGNED"
 	case arrow.PrimitiveTypes.Int8:
-		return "TINYINT SIGNED"
+		return "TINYINT"
 	case arrow.PrimitiveTypes.Uint16:
 		return "SMALLINT UNSIGNED"
 	case arrow.PrimitiveTypes.Int16:
-		return "SMALLINT SIGNED"
+		return "SMALLINT"
 	case arrow.PrimitiveTypes.Uint32:
 		return "INT UNSIGNED"
 	case arrow.PrimitiveTypes.Int32:
-		return "INT SIGNED"
+		return "INT"
 	case arrow.PrimitiveTypes.Uint64:
 		return "BIGINT UNSIGNED"
 	case arrow.PrimitiveTypes.Int64:
-		return "BIGINT SIGNED"
+		return "BIGINT"
 	case arrow.FixedWidthTypes.Boolean:
 		return "TINYINT(1)"
 	case arrow.BinaryTypes.String, arrow.BinaryTypes.LargeString:
@@ -321,17 +316,13 @@ func (u *MySQLUploader) ArrowDataTypeToMySQLType(colType arrow.DataType) string 
 }
 
 func (u *MySQLUploader) PrepareOutputTable(tableName string, columnNames []string, fields []arrow.Field) error {
-	// if exist, try to drop it
 	_, err := u.db.Exec("DROP TABLE IF EXISTS " + tableName)
-	// maybe permission denied, try delete
 	if err != nil {
 		nlog.Infof("Sql drop with err(%s), try to sql delete", err)
 		_, deleteErr := u.db.Exec("DELETE FROM " + tableName)
-		// if there is no table, we can try to create
 		if sqlErr, ok := deleteErr.(*mysql.MySQLError); ok && sqlErr.Number == uint16(ER_NO_SUCH_TABLE) {
 			nlog.Infof("Table(%s) not exist", tableName)
 		} else {
-			// table exists but can't delete, or other error
 			return deleteErr
 		}
 	}
@@ -352,9 +343,6 @@ func (u *MySQLUploader) PrepareOutputTable(tableName string, columnNames []strin
 }
 
 func (u *MySQLUploader) FlightStreamToDataProxyContentMySQL(reader *flight.Reader) (err error) {
-	// read data from flight.Reader, and write to mysql transaction
-
-	// schema field check
 	backTickHeaders := make([]string, reader.Schema().NumFields())
 	for idx, col := range reader.Schema().Fields() {
 		if strings.IndexByte(col.Name, '`') != -1 {
@@ -373,7 +361,6 @@ func (u *MySQLUploader) FlightStreamToDataProxyContentMySQL(reader *flight.Reade
 	tableName := "`" + u.data.RelativeUri + "`"
 	iCount := 0
 
-	// in the end, avoid panic
 	defer func() {
 		if r := recover(); r != nil {
 			nlog.Errorf("Write domaindata(%s) panic %+v", u.data.DomaindataId, r)
@@ -381,7 +368,6 @@ func (u *MySQLUploader) FlightStreamToDataProxyContentMySQL(reader *flight.Reade
 		}
 	}()
 
-	// prepare table
 	err = u.PrepareOutputTable(tableName, backTickHeaders, reader.Schema().Fields())
 	if err != nil {
 		nlog.Errorf("Prepare MySQL output table failed(%s)", err)
@@ -393,11 +379,9 @@ func (u *MySQLUploader) FlightStreamToDataProxyContentMySQL(reader *flight.Reade
 		nlog.Errorf("Begin Transaction failed(%s)", err)
 		return err
 	}
-	// then check the error, and commit/rollback the transaction
 	defer func() {
 		if err == nil {
 			nlog.Infof("Upload no error, ready to commit")
-			// return err to upper function
 			err = tx.Commit()
 			if err != nil {
 				nlog.Errorf("Commit Error(%s)", err)
@@ -405,7 +389,6 @@ func (u *MySQLUploader) FlightStreamToDataProxyContentMySQL(reader *flight.Reade
 				nlog.Infof("Transaction commit success")
 			}
 		} else {
-			// keep original error
 			rollErr := tx.Rollback()
 			nlog.Errorf("Rollback Error(%s)", rollErr)
 		}
@@ -416,7 +399,6 @@ func (u *MySQLUploader) FlightStreamToDataProxyContentMySQL(reader *flight.Reade
 			record := reader.Record()
 			record.Retain()
 			defer record.Release()
-			// read field data from record
 			recs := make([][]interface{}, record.NumRows())
 			for i := range recs {
 				recs[i] = make([]interface{}, record.NumCols())
@@ -429,7 +411,6 @@ func (u *MySQLUploader) FlightStreamToDataProxyContentMySQL(reader *flight.Reade
 			}
 			ib := sqlbuilder.InsertInto(tableName).Cols(backTickHeaders...)
 			placeholderCount := 0
-			// upload to sql
 			for _, row := range recs {
 				if placeholderCount+len(row) >= DEFAULT_MAX_PLACEHOLDER {
 					err = execOnce(ib, tx)
@@ -437,7 +418,6 @@ func (u *MySQLUploader) FlightStreamToDataProxyContentMySQL(reader *flight.Reade
 						return err
 					}
 					placeholderCount = 0
-					// start a new insert
 					ib = sqlbuilder.InsertInto(tableName).Cols(backTickHeaders...)
 				}
 				ib.Values(row...)
@@ -458,7 +438,6 @@ func (u *MySQLUploader) FlightStreamToDataProxyContentMySQL(reader *flight.Reade
 		}
 	}
 	if err := reader.Err(); err != nil {
-		// in this case, stmt.Exec are all success, try to commit, rather than fail
 		nlog.Warnf("Domaindata(%s) read from arrow flight failed with error: %s. MySQL upload result may have problems", u.data.DomaindataId, err)
 	}
 	nlog.Infof("Domaindata(%s) write total row: %d.", u.data.DomaindataId, iCount)
@@ -469,13 +448,11 @@ func execOnce(ib *sqlbuilder.InsertBuilder, tx *sql.Tx) (err error) {
 	sql, args := ib.Build()
 	stmt, err := tx.Prepare(sql)
 	defer func() {
-		// return an error to stop upload
 		closeErr := stmt.Close()
 		nlog.Errorf("Stmt close failed with error: %s", closeErr)
 		if err == nil {
 			err = closeErr
 		}
-
 	}()
 	if err != nil {
 		nlog.Errorf("Prepare sql(%s) failed with error: %s", sql, err)
